@@ -1,0 +1,31 @@
+#!/bin/sh
+# Author: Ming Su <me@suming.me>
+
+# macro index,pager T "<pipe-message>~/.mutt/bin/mutt2task<enter>"
+# Or the following one
+# macro index I "<pipe-message>~/.mutt/bin/mutt2task<enter><flag-message><sync-mailbox>" "flag message as important and mark as a task"
+
+# 自己的邮件地址，用于查找对方信息
+ownemailadd="XXX@XXX.XXX"
+# 删除临时文件
+rm  ~/.mutt/cache/temp
+# 将邮件内容保存至临时文件，这样的好处是能保留多行。
+grep '.' $*  > ~/.mutt/cache/temp
+# 找到有意义的Subject行，有的由于是转发或回复，不存在实质的subject需要排除。
+subject=`cat ~/.mutt/cache/temp | grep "Subject:\|主题:" | sed -e 's/^.*: \{0,1\}//g' | \
+    grep -v '^$' | head -n 1`
+who=`cat ~/.mutt/cache/temp | grep "From" | head -n 1 | sed -e 's/^From: //g'`
+# 检查是否是自己发的，如果是则获取收件人信息
+if [[ $who == *"$ownemailadd"* ]]; then
+    who=`cat ~/.mutt/cache/temp | grep "To" | head -n 1 | sed -e 's/^To: //g'`
+fi
+# 如有名字，则去除邮件地址
+if [[ $who == *"<"* ]]; then
+    who=`echo $who | sed -e 's/ *<[^ ]*>//g'`
+fi
+# 采用taskwarroir 增加task
+# 检查是否已经存在Task，如果没有创建，则创建
+n=`cat ~/.task/pending.data | grep "$who; $subject" | wc -l`
+if [[ $n -eq 0 ]]; then
+    /usr/local/bin/task add +email "$who; $subject"
+fi
